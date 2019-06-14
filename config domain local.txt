@@ -1,0 +1,25 @@
+Config domain local
++ Go to C:\Windows\System32\drivers\etc, open host
+add domain after 127.0.0.1
+example: 127.0.0.1 www.abc.com
+
++ Go to C:\xampp\apache\conf\extra(or any folder apache config extra folder), open httpd-vhosts.conf
+add VirtualHost
+example: 
+<VirtualHost *:80>    
+    ServerName www.abc.com
+    DocumentRoot d:/Web/www.abc.com
+
+    <Directory "d:/Web/www.abc.com">
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    <IfModule mod_rewrite.c>
+        RewriteEngine on
+        RewriteRule ^/(es|fr|ja|ru)/(.*)$ /$2 [L,R=301]
+    </IfModule>
+</VirtualHost>
+
++ Restart apache

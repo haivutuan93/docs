@@ -1,0 +1,17 @@
+- Present
+	+ Present simple: S + V
+	+ Present complete: S + have + V_ed
+	+ Present continous: S + is + V_ing
+	+ Present complete continous: S + have been + V_ing
+- Past:
+	+ Past simple: S + V_ed
+	+ Past complete: S + had + V_ed
+	+ Past continous: S + was + V_ing
+	+ Past complete continous: S + had been + V_ing
+- Future:
+	+ Future simple: S + will/be going to + V						
+	+ Future complete: S + will + have + V_ed
+	+ Future continous: S + will + is + V_ing
+	+ Future complete continous: S + will + had been + V_ing
+
+	

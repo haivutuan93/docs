@@ -1,2 +1,1 @@
 sudo mount -t vboxsf SharedUbuntu /home/haivt/ShareUbuntu/
-

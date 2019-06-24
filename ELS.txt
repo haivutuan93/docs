@@ -1,0 +1,322 @@
+private String getQueryPhrase(String queryText) {
+
+		Pattern pattern = Pattern.compile("^\"(.*)\"$");
+		Matcher m = pattern.matcher(queryText);
+		if (m.find())
+			return m.group(1);
+
+		return null;
+
+}
+
+
+@Override
+public String reIndex(String indexName) {
+		
+		try {
+			deleteIndex(indexName);
+		} catch (Exception e) {
+			log.info("[reIndex] name[{}] => not found ", indexName);
+		}
+
+		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+
+		HttpHeaders httpHeaders = new HttpHeaders();
+		httpHeaders.add("Content-Type", "application/json");
+		
+		String body = "{\"conflicts\": \"proceed\", \"source\": {\"index\": \"td_stg_indexed\"}, \"dest\": {\"index\": \""+ indexName +"\", \"op_type\": \"create\"}}";
+
+		log.info("[reIndex] body[{}] endpoint[{}]", body, elsEndpoint + "/_reindex");
+		
+		HttpEntity<String> httpRequest = new HttpEntity<>(body, httpHeaders);
+
+		UriComponents uri = UriComponentsBuilder.fromHttpUrl(elsEndpoint + "/_reindex").queryParams(params)
+				.build();
+		ResponseEntity<String> response = restTemplate.exchange(uri.toUri(), HttpMethod.POST, httpRequest,
+				String.class);
+
+		log.info("[reIndex] name[{}], response[{}]", indexName, response.getBody());
+
+		return response.getBody();
+}
+
+	
+@Override
+public Page<Result> doSearch(String queryText, String queryInResult, List<List<String>> terms, List<String> notTerms, String queryPhrase, Pageable pageable) {
+
+		String fieldScores[] = new String[] {
+				
+				"title^1.8", 
+				"normalizedLink^1.4", 
+				"content^1"
+				
+		};
+		
+		String fieldScores2[] = new String[] {
+				
+				"title^2", 
+				"normalizedLink^2", 
+				"content^2"
+		};
+		
+		MultiMatchQueryBuilder matchPhraseQuery = null;
+		MultiMatchQueryBuilder matchPhraseQuery2 = null;
+		
+		if(StringUtils.isNotEmpty(queryPhrase)) {
+			
+			matchPhraseQuery = QueryBuilders.multiMatchQuery(queryPhrase, fieldScores).operator(MatchQueryBuilder.Operator.OR).type(Type.PHRASE);
+		} else {
+			
+			matchPhraseQuery = QueryBuilders.multiMatchQuery(queryText, fieldScores).operator(MatchQueryBuilder.Operator.OR).type(Type.PHRASE);
+			matchPhraseQuery2 = QueryBuilders.multiMatchQuery(queryText, fieldScores2).operator(MatchQueryBuilder.Operator.AND).type(Type.MOST_FIELDS);
+		}
+		
+		BoolQueryBuilder  boolQuery = QueryBuilders.boolQuery();
+
+		if(StringUtils.isNotEmpty(queryPhrase)) {
+			
+			boolQuery.must(matchPhraseQuery);
+		} else {
+		
+			MultiMatchQueryBuilder matchBestFieldQuery = QueryBuilders.multiMatchQuery(queryText, fieldScores).operator(MatchQueryBuilder.Operator.OR).type(Type.MOST_FIELDS); //  Consider with MOST_FIELDS
+			
+			boolQuery.must(matchBestFieldQuery)
+				.should(matchPhraseQuery);
+			
+			if(matchPhraseQuery2 != null)
+				boolQuery.should(matchPhraseQuery2);
+		}
+		
+		BoolQueryBuilder boolQueryAndTerms = QueryBuilders.boolQuery();
+		boolean hasTermsFilter = false;
+		
+		// terms
+		for(List<String> orTerms: terms) {
+			
+			if(orTerms == null || orTerms.isEmpty())
+				continue;
+			
+			boolean matched = false;
+			BoolQueryBuilder boolQueryOrTerms = QueryBuilders.boolQuery();
+			
+			for(String orTerm: orTerms) {
+				
+				Pattern pattern = Pattern.compile("([a-zA-Z0-9.-_]+):(.+)");
+				Matcher m = pattern.matcher(orTerm);
+				if(m.find()) {
+					
+					String m1 = m.group(1);
+					String m2 = m.group(2);
+					MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery(m1, m2).type(MatchQueryBuilder.Type.PHRASE);
+					
+					matched = true;
+					boolQueryOrTerms.should(matchQueryBuilder);
+				}
+				
+			}
+			
+			if(matched) {
+				hasTermsFilter = true;
+				boolQueryAndTerms.must(boolQueryOrTerms);
+			}
+			
+		}
+		
+		//if(hasTermsFilter)
+		//	boolQuery.must(boolQueryAndTerms);
+		
+		// notTerms
+		if(notTerms != null) {
+			
+			BoolQueryBuilder boolQueryTerm = QueryBuilders.boolQuery();
+			boolean matched = false;
+			
+			for(String term : notTerms) {
+				
+				Pattern pattern = Pattern.compile("([a-zA-Z0-9.-]+):(.+)");
+				Matcher m = pattern.matcher(term);
+				if(m.find()) {
+					
+					matched = true;
+					String m1 = m.group(1);
+					String m2 = m.group(2);
+					MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery(m1, m2).type(MatchQueryBuilder.Type.PHRASE);
+					boolQueryTerm.should(matchQueryBuilder);
+				}
+				
+			}
+			
+			if(matched) 
+				boolQuery.mustNot(boolQueryTerm);
+			
+		}
+		
+		FunctionScoreQueryBuilder functionScoreQueryBuilder =  QueryBuilders.functionScoreQuery(boolQuery).add(ScoreFunctionBuilders.fieldValueFactorFunction("boost")).boostMode("multiply");
+		
+		
+		/**
+		 * Search in results
+		 */
+		
+		BoolQueryBuilder filters = null;
+		
+		if(StringUtils.isNotEmpty(queryInResult)) {
+			
+			MultiMatchQueryBuilder searchInResult_matchPhraseQuery = null;
+			
+			String searchInResult_queryPhrase = getQueryPhrase(queryInResult);
+			
+			if(searchInResult_queryPhrase != null && !searchInResult_queryPhrase.equals(queryInResult)) {
+				
+				searchInResult_matchPhraseQuery = QueryBuilders.multiMatchQuery(searchInResult_queryPhrase, fieldScores).operator(MatchQueryBuilder.Operator.OR).type(Type.PHRASE);
+			} else {
+				
+				searchInResult_matchPhraseQuery = QueryBuilders.multiMatchQuery(queryInResult, fieldScores2).operator(MatchQueryBuilder.Operator.AND).type(Type.MOST_FIELDS);
+			}
+			
+			filters = QueryBuilders.boolQuery().must(searchInResult_matchPhraseQuery);
+		}
+		
+		HighlightBuilder.Field highlightContent = new HighlightBuilder.Field("content").preTags("<b>").postTags("</b>").order("score").fragmentSize(192).numOfFragments(1).noMatchSize(0);
+		HighlightBuilder.Field highlightTitle = new HighlightBuilder.Field("title").preTags("<b>").postTags("</b>");
+		HighlightBuilder.Field highlightLink = new HighlightBuilder.Field("normalizedLink").preTags("<b>").postTags("</b>");
+		
+		if(queryInResult != null) 
+			highlightContent.highlightQuery(filters);
+		
+//		String indicate = usingStgIndexed.get() ? "td_stg_indexed" : "td_prod_indexed";
+		
+		String indicate = getCurrentUsingIndex();
+		
+		functionScoreQueryBuilder.setMinScore(0.005f);
+		
+		NativeSearchQueryBuilder nativeSearchQueryBuilder = new NativeSearchQueryBuilder()
+				.withIndices(indicate)
+				.withTypes("doc")
+	            .withQuery(functionScoreQueryBuilder)
+	            .withHighlightFields(highlightTitle, highlightContent, highlightLink)
+	            .withPageable(pageable)
+	            .withSort(SortBuilders.scoreSort().order(SortOrder.DESC));
+		
+		if(StringUtils.isNotEmpty(queryInResult)) {
+			
+			if(hasTermsFilter && filters != null)
+				filters.must(boolQueryAndTerms);
+			
+			nativeSearchQueryBuilder.withFilter(filters);
+		} else {
+			
+			if(hasTermsFilter) 
+				nativeSearchQueryBuilder.withFilter(boolQueryAndTerms);
+		}
+		
+		SearchQuery searchQuery = nativeSearchQueryBuilder.build();
+		
+		Page<Result> page = elasticsearchTemplate.queryForPage(searchQuery, Result.class, new SearchResultMapper() {
+			
+			@SuppressWarnings("unchecked")
+			@Override
+			public <T> Page<T> mapResults(org.elasticsearch.action.search.SearchResponse response, Class<T> clazz, Pageable pageable) {
+				
+				List<Result> chunk = new ArrayList<Result>();
+	            for (SearchHit searchHit : response.getHits()) {
+	                if (response.getHits().getHits().length <= 0) {
+	                    return null;
+	                }
+	                Result indexed = new Result();
+	                indexed.setId(searchHit.getId());
+	                
+	                Map<String, HighlightField> highlightFields = searchHit.getHighlightFields();
+	                Map<String, Object> sources = searchHit.getSource();
+	                
+	                if(sources.containsKey("title")) {
+                		indexed.setTitle((String) sources.get("title"));
+                	} 
+	                
+	                if(highlightFields.containsKey("title")) {
+	                	
+	                	String htmlTitle = highlightFields.get("title").fragments()[0].toString();
+	                	indexed.setHtmlTitle(htmlTitle);
+	                	
+	                } 
+	                
+	                if(sources.containsKey("link")) {
+                		indexed.setLink((String) sources.get("link"));
+                	} 
+	                
+	                if(highlightFields.containsKey("normalizedLink")) {
+	                	String link = highlightFields.get("normalizedLink").fragments()[0].toString();
+	                	indexed.setHtmlLink(link);
+	                }
+	                
+	                if(sources.containsKey("lang")) {
+                		indexed.setLang((String) sources.get("lang"));
+                	} 
+	                
+	                if(sources.containsKey("pagemap")) {
+	                	ObjectMapper mapper = new ObjectMapper(); 
+	                	TDPageMap pagemap = mapper.convertValue(sources.get("pagemap"), TDPageMap.class);
+                		indexed.setPagemap(pagemap);
+                	} 
+	                
+	                StringBuilder snippet = new StringBuilder();
+	                StringBuilder htmlSnippet = new StringBuilder();
+	                
+	                if(highlightFields.containsKey("content")) {
+	                	
+	                	for(Text t: highlightFields.get("content").fragments()) {
+	                		
+	                		String content = t.toString().trim();
+	                		snippet.append(content);
+	                		htmlSnippet.append(content);
+	                	
+	                	}
+	                	
+	                }
+	                
+	                indexed.setHtmlSnippet(htmlSnippet.toString());
+	                indexed.setSnippet(snippet.toString());
+	                
+	                if(StringUtils.isEmpty(indexed.getSnippet())) {
+	                	
+	                	if(sources.containsKey("content")) {
+	                		indexed.setSnippet(trimContent((String) sources.get("content")));
+	                	}
+	                	
+	                }
+	                
+	                if(StringUtils.isEmpty(indexed.getHtmlSnippet())) {
+	                	indexed.setHtmlSnippet(indexed.getSnippet());
+	                }
+	                
+	                if(StringUtils.isEmpty(indexed.getHtmlTitle())) {
+	                	indexed.setHtmlTitle(indexed.getTitle());
+	                }
+	                
+	                if(StringUtils.isEmpty(indexed.getHtmlLink())) {
+	                	indexed.setHtmlLink(indexed.getLink());
+	                }
+	                
+	                indexed.setBoost(searchHit.getScore());
+	                
+	                // remove | TD Developers
+	                if(!StringUtils.isEmpty(indexed.getHtmlTitle())) {
+	                	indexed.setHtmlTitle(indexed.getHtmlTitle().replace("| TD Developers", "").trim());
+	                }
+	                
+	                if(!StringUtils.isEmpty(indexed.getTitle())) {
+	                	indexed.setTitle(indexed.getTitle().replace("| TD Developers", "").trim());
+	                }
+	                	                
+	                chunk.add(indexed);
+	            }
+	            if (chunk.size() > 0) {
+	                return new PageImpl<T>((List<T>) chunk, pageable, response.getHits().getTotalHits());
+	            }
+				return null;
+			}
+
+		});
+		
+		return page;
+}

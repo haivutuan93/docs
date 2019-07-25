@@ -1,0 +1,5 @@
+- CI/CD:
+Jenkins kết hợp Automation Test(Selenium), Deploy tự động
+
+- Angular
+- ElasticSearch

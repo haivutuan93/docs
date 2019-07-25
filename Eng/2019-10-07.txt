@@ -3,4 +3,8 @@ assume
 either 
 pleasant
 fundamental
-consulting 
+consult
+absent
+attend
+appear
+disappear

@@ -4,7 +4,4 @@ either
 pleasant
 fundamental
 consult
-absent
 attend
-appear
-disappear

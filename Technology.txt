@@ -6,6 +6,7 @@
 + Elastic in some Servers
 + CI/CD:
 Jenkins kết hợp Automation Test(Selenium), Deploy tự động
++ Hack System
 + Angular
 + ReactJS
 + Nodejs

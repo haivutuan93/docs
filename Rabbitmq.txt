@@ -1,7 +1,7 @@
 RabbitMQ:
 
 Producer -> Message -> Exchange -> Queue -> Consumer
-Các queue sẽ gắn(bind) với các exchange, 1 queue có thể bind với 1 hoặc nhiều exchange, 1 exchange có thể bind với 1 hoặc nhiều queue
+Các queue sẽ gắn(bind) với các exchange, 1 queue có thể bind với 1 hoặc nhiều exchange, 1 exchange có thể bind với 1 hoặc nhiều queue(queue và exchange gắn với nhau bởi Routing_key)
 Mỗi message có 1 key binding, message gửi đến exchange, exchange sẽ xem xét các queue bind với nó, check key của message phù hợp với queue nào(dựa vào queue name) và gửi message đến queue đó.
 
 - Exchange attribute:
@@ -13,7 +13,7 @@ Is direct exchange with no name
 
 + Direct exchange:
 Example name: "Image", some message to exchange with binding key: "archive", "cropper"
-Queue with name will receive message: "archive1", "archive2", "cropper"
+Queue bind this exchange with Routing_key will receive message: "archive1", "archive2", "cropper"
 
 + Topic exchange
 Send message with routing keys containing a series of words separated by a dot (e.g. “word1.word2.word3”)

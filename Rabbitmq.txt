@@ -15,12 +15,10 @@ Is direct exchange with no name
 Example name: "Image", some message to exchange with binding key: "archive", "cropper"
 Queue with name will receive message: "archive1", "archive2", "cropper"
 
-+ Fanout exchange
-Is broadcast, send message to all of queue bind to this exchange ignore message's key
-
 + Topic exchange
 Send message with routing keys containing a series of words separated by a dot (e.g. “word1.word2.word3”)
 Example: Message with key: honda.civic.navy will match with: “honda.civic.navy”, “*.civic.*”, “honda.#”, or “#”
 (“*”) to match a word in a specific position of the routing key, or a hash (“#”) to match zero or more words
 
-
++ Fanout exchange
+Is broadcast, send message to all of queue bind to this exchange ignore message's key

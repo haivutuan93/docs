@@ -2,12 +2,12 @@
 + JWT
 + Security with 2 Server in 2 Places
 + Spring OAuth2
-+ Kafka And RabbitMQ
-+ Elastic in some Servers
 + CI/CD:
 Jenkins kết hợp Automation Test(Selenium), Deploy tự động
++ ReactJS, Redux
++ Kafka And RabbitMQ
++ Elastic in some Servers
 + Hack System
 + Angular
-+ ReactJS
 + Nodejs
-
++ Docker

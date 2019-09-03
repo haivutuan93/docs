@@ -1,0 +1,43 @@
+- Cách authenticate các đường link
+VD: .antMatchers("/api/**").authenticated()
+    .anyRequest().permitAll()
+	
+Để authenticate: set Authentication cho context
+SecurityContextHolder.getContext().setAuthentication(authentication);
+
+
+- UserDetailsService loadUserByUsername(String username)
+Dùng để check User đăng nhập có thỏa mãn không
+ @Override
+    public UserDetails loadUserByUsername(String s) throws UsernameNotFoundException {
+        User user = userRepository.findByName(s);
+
+        List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
+
+        List<Role> roles = user.getRoles();
+        for (Role role: roles){
+            grantedAuthorities.add(new SimpleGrantedAuthority(role.getName()));
+        }
+
+        return new org.springframework.security.core.userdetails.User(user.getName(), user.getPass(), grantedAuthorities);
+
+    }
+
+
+- OAuth2
+Có 1 số cách để User gán quyền cho Clients(App hoặc Browser) trên Auth Server(ex: FB Auth Server)
+		+ Authorization_Code: 
+			App gửi cho User đường dẫn đến xác thực ở Auth Server
+				GET http://localhost:8080/oauth/authorize?client_id=client_id&response_type=code&scope=read_profile_info
+			User truy cập vào đường dẫn đó, đồng ý thì Auth Server sẽ gửi 1 code về cho App(trên Auth Server đã định nghĩa callback url sau khi User đồng ý cấp quyền cho app)
+			App sử dụng code đó và gửi yêu cầu lấy Token(Access Token và Refresh Token, hoặc chỉ Access Token)
+				POST http://localhost:8080/oauth/token?client_id=clientapp&client_secret=123456&grant_type=authorization_code&code=43UJlO
+			Khi Access Token hết hạn thì sử dụng Refresh Token gửi yêu cầu lấy Access Token mới
+				POST http://localhost:8080/oauth/token?grant_type=refresh_token&client_id=clientapp&client_secret=123456&refresh_token=73c9bd9f-7a9e-418a-80f1-1f05c46cadc1
+			
+		+ User Password Credential
+		+ Refresh Token
+			Khi Access Token hết hạn thì sử dụng Refresh Token gửi yêu cầu lấy Access Token mới
+				POST http://localhost:8080/oauth/token?grant_type=refresh_token&client_id=clientapp&client_secret=123456&refresh_token=73c9bd9f-7a9e-418a-80f1-1f05c46cadc1
+		
+Hay sử dụng nhất là Authorization_Code

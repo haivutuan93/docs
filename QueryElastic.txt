@@ -1,0 +1,109 @@
+match_phrase: 	name
+prefix: 		name.keyword
+regexp: 		name.keyword
+
+{
+    "query":  {
+        "nested" : {
+            "path" : "meta_fields",
+            "query" : {
+                 "match" : {
+		            "meta_fields.pos_account_name" : "world hello"
+		        }
+            }
+        }
+    }
+}
+
+
+
+{
+    "query":  {
+        "nested" : {
+            "path" : "meta_fields",
+            "query" : {
+                "bool" : {
+                    "must" : [
+                    { "match" : {"meta_fields.name" : "Nguyễn"} }
+                    ]
+                }
+            },
+            "score_mode" : "avg"
+        }
+    }
+}
+
+
+{
+    "query": {
+        "prefix" : { "user" : "ki" }
+    }
+}
+email
+kythuattien@gmail.com
+
+{
+	"query":{
+		"match_all":{
+		
+		}
+	}
+}
+
+{
+    "query" : {
+        "constant_score" : {
+            "filter" : {
+                "term" : {
+                    "productID" : "XHDK-A-1293-#fJ3"
+                }
+            }
+        }
+    }
+}
+
+
+{
+    "query" : {
+        "constant_score" : { 
+            "filter" : {
+                "term" : { 
+                    "phone_mobile": "0918186566"
+                }
+            }
+        }
+    }
+}
+
+{
+"query" : {
+        "filtered" : {
+            "filter" : {
+                "term" : {
+                    "productID" : "XHDK-A-1293-#fJ3"
+                }
+            }
+        }
+    }
+}
+
+
+
+{
+	"query":{
+		"match":{
+			"name": "Trương Quỳnh Anh 41"
+		}
+	}
+}
+
+{
+	"query":{
+		"bool":{
+			"must":{
+				
+			}
+		}
+	}
+}
+

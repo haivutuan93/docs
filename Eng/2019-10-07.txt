@@ -1,7 +1,0 @@
-delegate
-assume
-either 
-pleasant
-fundamental
-consult
-attend
